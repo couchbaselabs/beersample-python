@@ -1,0 +1,25 @@
+{% extends "layout.html" %}
+{% block body %}
+<div class="span6">
+  <div class="span12">
+    <h4>Browse all Beers</h4>
+    <a href="/beers" class="btn btn-warning">Show me all beers</a>
+    <hr />
+  </div>
+  <div class="span12">
+    <h4>Browse all Breweries</h4>
+    <a href="/breweries" class="btn btn-info">Take me to the breweries</a>
+  </div>
+</div>
+<div class="span6">
+<div class="span6">
+  <div class="span12">
+    <h4>About this App</h4>
+    <p>Welcome to Couchbase!</p>
+    <p>This application helps you to get started on application
+        development with Couchbase. It shows how to create, update and
+        delete documents and how to work with JSON documents.</p>
+  </div>
+</div>
+
+{% endblock %}
