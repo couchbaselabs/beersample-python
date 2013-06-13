@@ -1,0 +1,28 @@
+{% extends "layout.html" %}
+{% block body %}
+
+{% set display = beer.doc.copy() %}
+{% set brewery_id = display.pop('brewery_id') %}
+
+<h3>Show Details for Beer "{{beer.name}}"</h3>
+<table class="table table-striped">
+    <tbody>
+        <tr>
+            <td><strong>brewery_id</strong></td>
+            <td><a href="/breweries/show/{{brewery_id}}">{{brewery_id}}</a></td>
+        </tr>
+        {% for k, v in display.items() %}
+        <tr>
+            <td><strong>{{k}}</strong></td>
+            <td>{{v}}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<a class="btn btn-medium btn-warning"
+    href="/beers/edit/{{beer.id}}">Edit</a>
+<a class="btn btn-medium btn-danger"
+    href="/beers/delete/{{beer.id}}">Delete</a>
+
+{% endblock %}

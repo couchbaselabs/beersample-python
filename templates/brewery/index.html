@@ -1,0 +1,30 @@
+{% extends "layout.html" %}
+{% block body %}
+
+<h3>Browse Breweries</h3>
+<form class="navbar-search pull-left">
+    <input id="brewery-search" type="text" class="search-query"
+    placeholder="Search for Breweries">
+</form>
+
+<table id="brewery-table" class="table table-striped">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for brewery in results %}
+        <tr>
+            <td><a
+                    href="/breweries/show/{{brewery.id}}">{{brewery.name}}</a></td>
+            <td><a class="btn btn-small btn-danger"
+                    href="/breweries/delete/{{brewery.id}}">Delete</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% endblock %}

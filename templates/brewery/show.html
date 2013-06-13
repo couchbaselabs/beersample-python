@@ -1,0 +1,16 @@
+{% extends "layout.html" %}
+{% block body %}
+
+<h3>Show Details for "{{brewery.name}}"</h3>
+<table class="table table-striped">
+    <tbody>
+        {% for k, v in brewery.doc.items() %}
+        <tr>
+            <td><strong>{{k}}</strong></td>
+            <td>{{v}}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% endblock %}

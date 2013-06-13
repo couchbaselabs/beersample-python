@@ -5,11 +5,17 @@ class Brewery(object):
         self._data = None
 
 class Beer(object):
-    def __init__(self, id, name):
+    def __init__(self, id, name, doc=None):
         self.id = id
         self.name = name
         self.brewery = None
-        self.brewery_id = None
+        self.doc = doc
+
+    def __getattr__(self, name):
+        if not self.doc:
+            return ""
+        return self.doc.get(name, "")
+
 
 class BeerListRowProcessor(object):
     """
@@ -29,8 +35,13 @@ class BeerListRowProcessor(object):
             by_docids[b.id] = b
 
         keys_to_fetch = [ x.id for x in ret ]
-        docs = connection.get_multi(keys_to_fetch)
+        docs = connection.get_multi(keys_to_fetch, quiet=True)
+
         for beer_id, doc in docs.items():
+            if not doc.success:
+                ret.remove(beer)
+                continue
+
             beer = by_docids[beer_id]
             beer.brewery_id = doc.value['brewery_id']
 
@@ -39,7 +50,6 @@ class BeerListRowProcessor(object):
     def __iter__(self):
         if not self.iterator:
             return
-
 
         for beer in self.iterator:
             yield beer
