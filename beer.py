@@ -28,9 +28,6 @@ class BeerListRowProcessor(object):
     """
     This is the row processor for listing all beers (with their brewery IDs).
     """
-    def __init__(self):
-        self.iterator = None
-
     def handle_rows(self, rows, connection, include_docs):
         ret = []
         by_docids = {}
@@ -51,17 +48,7 @@ class BeerListRowProcessor(object):
             beer = by_docids[beer_id]
             beer.brewery_id = doc.value['brewery_id']
 
-        self.iterator = iter(ret)
-
-    def __iter__(self):
-        if not self.iterator:
-            return
-
-        for beer in self.iterator:
-            yield beer
-
-        self.iterator = None
-
+        return ret
 
 DATABASE = 'beer-sample'
 HOST = 'localhost'
@@ -238,4 +225,4 @@ def search(otype):
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0')
