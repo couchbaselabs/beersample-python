@@ -186,8 +186,13 @@ def edit_beer_submit(beer):
     return redirect('/beers/show/' + beer)
 
 
-@app.route('/<otype>/search')
-def search(otype):
+def return_search_json(ret):
+    response = app.make_response(json.dumps(ret))
+    response.headers['Content-Type'] = 'application/json'
+    return response
+
+@app.route('/beers/search')
+def beer_search():
     value = request.args.get('value')
     q = Query()
     q.mapkey_range = [value, value + Query.STRING_RANGE_END]
@@ -195,34 +200,38 @@ def search(otype):
 
     ret = []
 
-    if otype == 'beers':
-        rp = BeerListRowProcessor()
-        res = db.query("beer", "by_name",
-                       row_processor=rp,
-                       query=q,
-                       include_docs=True)
+    rp = BeerListRowProcessor()
+    res = db.query("beer", "by_name",
+                   row_processor=rp,
+                   query=q,
+                   include_docs=True)
 
-        for beer in res:
-            ret.append({'id' : beer.id,
-                        'name' : beer.name,
-                        'brewery' : beer.brewery_id})
+    for beer in res:
+        ret.append({'id' : beer.id,
+                    'name' : beer.name,
+                    'brewery' : beer.brewery_id})
 
-    else:
-        rp = RowProcessor(rowclass=BreweryRow)
-        res = db.query("brewery", "by_name",
-                       row_processor=rp,
-                       query=q,
-                       include_docs=True)
-        for brewery in res:
-            ret.append({'id' : brewery.id,
-                        'name' : brewery.name})
+    return return_search_json(ret)
 
-    response = app.make_response(json.dumps(ret))
-    response.headers['Content-Type'] = 'application/json'
+@app.route('/breweries/search')
+def brewery_search():
+    value = request.args.get('value')
+    q = Query()
+    q.mapkey_range = [value, value + Query.STRING_RANGE_END]
+    q.limit = ENTRIES_PER_PAGE
 
-    return response
+    ret = []
 
+    rp = RowProcessor(rowclass=BreweryRow)
+    res = db.query("brewery", "by_name",
+                   row_processor=rp,
+                   query=q,
+                   include_docs=True)
+    for brewery in res:
+        ret.append({'id' : brewery.id,
+                    'name' : brewery.name})
 
+    return return_search_json(ret)
 
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0')
