@@ -1,8 +1,8 @@
 {% extends "layout.html" %}
 {% block body %}
 
-{% set display = beer.doc.copy() %}
-{% set brewery_id = display.pop('brewery_id') %}
+{% set display = beer.doc %}
+{% set brewery_id = display['brewery_id'] %}
 
 <h3>Show Details for Beer "{{beer.name}}"</h3>
 <table class="table table-striped">
@@ -11,7 +11,7 @@
             <td><strong>brewery_id</strong></td>
             <td><a href="/breweries/show/{{brewery_id}}">{{brewery_id}}</a></td>
         </tr>
-        {% for k, v in display.items() %}
+        {% for k, v in display.items() if not k == "brewery_id" %}
         <tr>
             <td><strong>{{k}}</strong></td>
             <td>{{v}}</td>
