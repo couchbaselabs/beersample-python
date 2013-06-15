@@ -4,7 +4,7 @@ import json
 from flask import Flask, request, redirect, abort, render_template
 
 from couchbase import Couchbase
-from couchbase.exceptions import KeyExistsError
+from couchbase.exceptions import KeyExistsError, NotFoundError
 from couchbase.views.iterator import RowProcessor
 from couchbase.views.params import UNSPEC, Query
 
@@ -98,19 +98,19 @@ def delete_object(otype, id):
         db.delete(id)
         return redirect('/welcome')
 
-    except:
+    except NotFoundError:
         return "No such {0} '{1}'".format(otype, id), 404
 
-@app.route('/beers/show/<beer>')
-def show_beer(beer):
-    doc = db.get(beer, quiet=True)
+@app.route('/beers/show/<beer_id>')
+def show_beer(beer_id):
+    doc = db.get(beer_id, quiet=True)
     if not doc.success:
-        return "No such beer {0}".format(beer), 404
+        return "No such beer {0}".format(beer_id), 404
 
 
     return render_template(
         'beer/show.html',
-        beer=Beer(beer, doc.value['name'], doc.value))
+        beer=Beer(beer_id, doc.value['name'], doc.value))
 
 @app.route('/breweries/show/<brewery>')
 def show_brewery(brewery):
@@ -130,7 +130,6 @@ def edit_beer_display(beer):
 
     return render_template('beer/edit.html',
                            beer=Beer(beer, bdoc.value['name'], bdoc.value),
-                           posturl='/beers/edit/' + beer,
                            is_create=False)
 
 @app.route('/beers/create')
