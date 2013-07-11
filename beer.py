@@ -37,7 +37,7 @@ class BeerListRowProcessor(object):
             ret.append(b)
             by_docids[b.id] = b
 
-        keys_to_fetch = [ x.id for x in ret ]
+        keys_to_fetch = [x.id for x in ret]
         docs = connection.get_multi(keys_to_fetch, quiet=True)
 
         for beer_id, doc in docs.items():
@@ -68,10 +68,9 @@ def connect_db():
 db = connect_db()
 
 @app.route('/')
+@app.route('/welcome')
 def welcome():
     return render_template('welcome.html')
-
-app.add_url_rule('/welcome', view_func=welcome)
 
 @app.route('/beers')
 def beers():
@@ -122,7 +121,7 @@ def show_brewery(brewery):
 
     return render_template('/brewery/show.html', brewery=obj)
 
-@app.route('/beers/edit/<beer>', methods=['GET'])
+@app.route('/beers/edit/<beer>')
 def edit_beer_display(beer):
     bdoc = db.get(beer, quiet=True)
     if not bdoc.success:
