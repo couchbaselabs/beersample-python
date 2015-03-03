@@ -3,7 +3,7 @@ import json
 
 from flask import Flask, request, redirect, abort, render_template
 
-from couchbase import Couchbase
+from couchbase.bucket import Bucket
 from couchbase.exceptions import KeyExistsError, NotFoundError
 from couchbase.views.iterator import RowProcessor
 from couchbase.views.params import UNSPEC, Query
@@ -50,19 +50,17 @@ class BeerListRowProcessor(object):
 
         return ret
 
-DATABASE = 'beer-sample'
-HOST = 'localhost'
-ENTRIES_PER_PAGE = 30
 
+CONNSTR = 'couchbase://localhost/beer-sample'
+ENTRIES_PER_PAGE = 30
 
 
 app = Flask(__name__, static_url_path='')
 app.config.from_object(__name__)
 
+
 def connect_db():
-    return Couchbase.connect(
-            bucket=app.config['DATABASE'],
-            host=app.config['HOST'])
+    return Bucket(CONNSTR)
 
 
 db = connect_db()
