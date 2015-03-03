@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from couchbase import Couchbase
+from couchbase.bucket import Bucket
 from couchbase.exceptions import HTTPError
 
 beer_by_name = {
@@ -29,23 +29,23 @@ breweries_design = {
     }
 }
 
-
-cb = Couchbase.connect(bucket='beer-sample')
+cb = Bucket('couchbase://localhost/beer-sample')
+mgr = cb.bucket_manager()
 
 # Get the beer view
-beer_design = cb.design_get("beer", use_devmode=False)
-if not 'by_name' in beer_design.value['views']:
+beer_design = mgr.design_get("beer", use_devmode=False)
+if 'by_name' not in beer_design.value['views']:
     beer_design.value['views']['by_name'] = beer_by_name
-    cb.design_create("beer",
-                     beer_design.value, syncwait=5, use_devmode=False)
+    mgr.design_create("beer",
+                      beer_design.value, syncwait=5, use_devmode=False)
 
 try:
-    b_design = cb.design_get("brewery", use_devmode=False)
-    if not 'by_name' in b_design.value['views']:
+    b_design = mgr.design_get("brewery", use_devmode=False)
+    if 'by_name' not in b_design.value['views']:
         b_design.value['views']['by_name'] = breweries_by_name
-        cb.design_create("brewery",
-                         beer_design.value, syncwait=5, use_devmode=False)
+        mgr.design_create("brewery",
+                          beer_design.value, syncwait=5, use_devmode=False)
 
 except HTTPError:
-    cb.design_create("brewery",
-                     breweries_design, use_devmode=False, syncwait=5)
+    mgr.design_create("brewery",
+                      breweries_design, use_devmode=False, syncwait=5)
