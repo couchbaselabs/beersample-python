@@ -1,22 +1,34 @@
-from collections import namedtuple
 import json
 
-from flask import Flask, request, redirect, abort, render_template
+from flask import Flask, request, redirect, render_template
 
 from couchbase.bucket import Bucket
 from couchbase.exceptions import KeyExistsError, NotFoundError
+from couchbase.views.params import Query
 from couchbase.views.iterator import RowProcessor
-from couchbase.views.params import UNSPEC, Query
 
 
-BreweryRow = namedtuple('BreweryRow', ['name', 'value', 'id', 'doc'])
+class BreweryRow(object):
+    def __init__(self, name, value, id, doc):
+        self.name = name
+        self.id = id
+        self.doc = doc.value if doc and doc.success else None
+
 
 class Beer(object):
-    def __init__(self, id, name, doc=None):
+    def __init__(self, name, _=None, id='', doc=None):
         self.id = id
         self.name = name
         self.brewery = None
+
+        if doc and doc.success:
+            doc = doc.value
+        else:
+            doc = None
+
         self.doc = doc
+        if doc and 'brewery_id' in doc:
+            self.brewery_id = doc['brewery_id']
 
     def __getattr__(self, name):
         if not self.doc:
@@ -24,36 +36,18 @@ class Beer(object):
         return self.doc.get(name, "")
 
 
-class BeerListRowProcessor(object):
-    """
-    This is the row processor for listing all beers (with their brewery IDs).
-    """
-    def handle_rows(self, rows, connection, include_docs):
-        ret = []
-        by_docids = {}
+class BeerRowProcessor(RowProcessor):
+    def __init__(self):
+        super(BeerRowProcessor, self).__init__(rowclass=Beer)
 
-        for r in rows:
-            b = Beer(r['id'], r['key'])
-            ret.append(b)
-            by_docids[b.id] = b
 
-        keys_to_fetch = [x.id for x in ret]
-        docs = connection.get_multi(keys_to_fetch, quiet=True)
-
-        for beer_id, doc in docs.items():
-            if not doc.success:
-                ret.remove(beer)
-                continue
-
-            beer = by_docids[beer_id]
-            beer.brewery_id = doc.value['brewery_id']
-
-        return ret
+class BreweryRowProcessor(RowProcessor):
+    def __init__(self):
+        super(BreweryRowProcessor, self).__init__(rowclass=BreweryRow)
 
 
 CONNSTR = 'couchbase://localhost/beer-sample'
 ENTRIES_PER_PAGE = 30
-
 
 app = Flask(__name__, static_url_path='')
 app.config.from_object(__name__)
@@ -65,6 +59,7 @@ def connect_db():
 
 db = connect_db()
 
+
 @app.route('/')
 @app.route('/welcome')
 def welcome():
@@ -72,27 +67,20 @@ def welcome():
 
 @app.route('/beers')
 def beers():
-    rp = BeerListRowProcessor()
-    rows = db.query("beer", "by_name",
-                    limit=ENTRIES_PER_PAGE,
-                    row_processor=rp)
-
+    rows = db.query("beer", "by_name", limit=ENTRIES_PER_PAGE,
+                    row_processor=BeerRowProcessor(), include_docs=True)
     return render_template('beer/index.html', results=rows)
 
 @app.route('/breweries')
 def breweries():
-    rp = RowProcessor(rowclass=BreweryRow)
-    rows = db.query("brewery", "by_name",
-                    row_processor=rp,
-                    limit=ENTRIES_PER_PAGE)
-
+    rows = db.query("brewery", "by_name", limit=ENTRIES_PER_PAGE,
+                    row_processor=BreweryRowProcessor(), include_docs=True)
     return render_template('brewery/index.html', results=rows)
-
 
 @app.route('/<otype>/delete/<id>')
 def delete_object(otype, id):
     try:
-        db.delete(id)
+        db.remove(id)
         return redirect('/welcome')
 
     except NotFoundError:
@@ -104,10 +92,9 @@ def show_beer(beer_id):
     if not doc.success:
         return "No such beer {0}".format(beer_id), 404
 
-
     return render_template(
         'beer/show.html',
-        beer=Beer(beer_id, doc.value['name'], doc.value))
+        beer=Beer(id=beer_id, name=doc.value['name'], doc=doc))
 
 @app.route('/breweries/show/<brewery>')
 def show_brewery(brewery):
@@ -115,7 +102,7 @@ def show_brewery(brewery):
     if not doc.success:
         return "No such brewery {0}".format(brewery), 404
 
-    obj = BreweryRow(name=doc.value['name'], value=None, id=brewery, doc=doc.value)
+    obj = BreweryRow(name=doc.value['name'], value=None, id=brewery, doc=doc)
 
     return render_template('/brewery/show.html', brewery=obj)
 
@@ -125,13 +112,14 @@ def edit_beer_display(beer):
     if not bdoc.success:
         return "No Such Beer", 404
 
-    return render_template('beer/edit.html',
-                           beer=Beer(beer, bdoc.value['name'], bdoc.value),
-                           is_create=False)
+    return render_template(
+        'beer/edit.html',
+        beer=Beer(id=beer, name=bdoc.value['name'], doc=bdoc),
+        is_create=False)
 
 @app.route('/beers/create')
 def create_beer_display():
-    return render_template('beer/edit.html', beer=Beer('', ''), is_create=True)
+    return render_template('beer/edit.html', beer=Beer(name=''), is_create=True)
 
 
 def normalize_beer_fields(form):
@@ -144,10 +132,10 @@ def normalize_beer_fields(form):
         doc[fieldname] = v
 
     if not 'name' in doc or not doc['name']:
-        return (None, ("Must have name", 400))
+        return None, ("Must have name", 400)
 
     if not 'brewery_id' in doc or not doc['brewery_id']:
-        return (None, ("Must have brewery ID", 400))
+        return None, ("Must have brewery ID", 400)
 
     if not db.get(doc['brewery_id'], quiet=True).success:
         return (None,
@@ -196,11 +184,8 @@ def beer_search():
 
     ret = []
 
-    rp = BeerListRowProcessor()
-    res = db.query("beer", "by_name",
-                   row_processor=rp,
-                   query=q,
-                   include_docs=True)
+    res = db.query("beer", "by_name", row_processor=BeerRowProcessor(),
+                   query=q, include_docs=True)
 
     for beer in res:
         ret.append({'id' : beer.id,
@@ -218,11 +203,9 @@ def brewery_search():
 
     ret = []
 
-    rp = RowProcessor(rowclass=BreweryRow)
+    rp = BreweryRowProcessor()
     res = db.query("brewery", "by_name",
-                   row_processor=rp,
-                   query=q,
-                   include_docs=True)
+                   row_processor=rp, query=q, include_docs=True)
     for brewery in res:
         ret.append({'id' : brewery.id,
                     'name' : brewery.name})
